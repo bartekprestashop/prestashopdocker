@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  traefik:
+    image: traefik:v3.1
+    container_name: traefik
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"        
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8088:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  prestashop:
+    build: ./apache-php
+    container_name: prestashop8
+    depends_on:
+      - db
+    volumes:
+      - ./prestashop:/var/www/html
+    environment:
+      - PS_DEV_MODE=1
+      - PS_INSTALL_AUTO=0
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prestashop.rule=Host(`prestashop8.local`)"
+      - "traefik.http.services.prestashop.loadbalancer.server.port=80"
+
+  db:
+    image: mysql:8.0
+    container_name: prestashop8_db
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: prestashop
+      MYSQL_USER: prestashop
+      MYSQL_PASSWORD: prestashop
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:
